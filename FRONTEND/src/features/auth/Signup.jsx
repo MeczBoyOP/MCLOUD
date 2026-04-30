@@ -28,7 +28,7 @@ const Signup = () => {
             if (data.success) {
                 toast.success(data.message || 'Account created successfully');
                 login(data.data.token, data.data.user);
-                navigate('/user/dashboard');
+                navigate('/login');
             }
         },
         onError: (error) => {
