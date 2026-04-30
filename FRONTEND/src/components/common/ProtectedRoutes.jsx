@@ -32,7 +32,7 @@ export const PublicRoute = () => {
     }
 
     if (user) {
-        return <Navigate to="/user/dashboard" replace />;
+        return <Navigate to={user.role === "admin" ? "/admin/dashboard" : "/user/dashboard"} replace />;
     }
 
     return <Outlet />;

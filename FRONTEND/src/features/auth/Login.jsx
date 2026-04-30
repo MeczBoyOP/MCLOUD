@@ -28,7 +28,11 @@ const Login = () => {
             if (data.success) {
                 toast.success(data.message || 'Logged in successfully');
                 login(data.data.token, data.data.user);
-                navigate('/user/dashboard');
+                // Redirect based on role
+                const destination = data.data.user?.role === 'admin'
+                    ? '/admin/dashboard'
+                    : '/user/dashboard';
+                navigate(destination);
             }
         },
         onError: (error) => {
