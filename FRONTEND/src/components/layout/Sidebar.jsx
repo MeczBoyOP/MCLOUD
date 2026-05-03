@@ -7,6 +7,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import AssetsPath from "../../assets/AssetsPath";
 import { getFolders, createFolder, moveFolder } from "../../features/folders/services/folderAPI";
 import { moveFile } from "../../features/files/services/fileAPI";
 import { useAuth } from "../../context/AuthContext";
@@ -107,7 +108,7 @@ const FolderNode = ({ node, level = 0, onNavigate, activeFid, onDropFolder }) =>
                 <button
                     title="New subfolder"
                     onClick={e => { e.stopPropagation(); setAdding(true); setOpen(true); }}
-                    className="opacity-0 group-hover/row:opacity-100 p-0.5 rounded
+                    className="group-hover/row:opacity-100 p-0.5 rounded
                                hover:bg-white/10 text-gray-500 hover:text-white transition shrink-0"
                 >
                     <FolderPlus size={11} />
@@ -207,8 +208,8 @@ const MyFilesSection = () => {
         mutationFn: moveFolder,
         onSuccess: () => {
             toast.success("Folder moved");
-            queryClient.invalidateQueries(['folders']); 
-            queryClient.invalidateQueries(['files']); 
+            queryClient.invalidateQueries(['folders']);
+            queryClient.invalidateQueries(['files']);
         },
         onError: (err) => toast.error(err.response?.data?.message || "Failed to move folder")
     });
@@ -217,8 +218,8 @@ const MyFilesSection = () => {
         mutationFn: moveFile,
         onSuccess: () => {
             toast.success("File moved");
-            queryClient.invalidateQueries(['folders']); 
-            queryClient.invalidateQueries(['files']); 
+            queryClient.invalidateQueries(['folders']);
+            queryClient.invalidateQueries(['files']);
         },
         onError: (err) => toast.error(err.response?.data?.message || "Failed to move file")
     });
@@ -234,14 +235,14 @@ const MyFilesSection = () => {
         try {
             const parsed = JSON.parse(e.dataTransfer.getData("application/json"));
             if (!parsed || !parsed.id || !parsed.type) return;
-            if (parsed.id === targetFolderId) return; 
+            if (parsed.id === targetFolderId) return;
 
             if (parsed.type === 'folder') {
                 moveFolderMutation.mutate({ id: parsed.id, targetFolderId });
             } else if (parsed.type === 'file') {
                 moveFileMutation.mutate({ id: parsed.id, targetFolderId });
             }
-        } catch (err) {}
+        } catch (err) { }
     };
 
     return (
@@ -335,9 +336,9 @@ const Sidebar = () => {
 
             {/* Top: Logo + nav */}
             <div className="p-4 space-y-4 shrink-0">
-                <h1 className="text-lg font-semibold flex items-center gap-2">
-                    M<span className="text-blue-400">Cloud</span>
-                </h1>
+                <div className="h-6 flex items-center mb-6">
+                    <img src={AssetsPath.FullLogo} alt="MCloud" className="h-full object-contain" />
+                </div>
 
                 <div className="space-y-1">
                     {menuItems.map((item, i) => {

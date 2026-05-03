@@ -1,4 +1,6 @@
 const path = require("path");
+const fs = require("fs");
+const crypto = require("crypto");
 const asyncHandler = require("../middleware/asyncHandler");
 const File = require("../models/File");
 const Folder = require("../models/Folder");
@@ -182,6 +184,187 @@ const toggleStar = asyncHandler(async (req, res) => {
     return sendSuccess(res, file.isStarred ? "File starred" : "File unstarred", { file });
 });
 
+// ─── PATCH /api/files/:id/hide ─────────────────────────────────────────────────
+const toggleHide = asyncHandler(async (req, res) => {
+    const file = await File.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+        isTrashed: false,
+    });
+
+    if (!file) {
+        return sendError(res, "File not found", 404);
+    }
+
+    file.isHidden = !file.isHidden;
+    await file.save();
+
+    return sendSuccess(res, file.isHidden ? "File hidden" : "File unhidden", { file });
+});
+
+// ─── PATCH /api/files/:id/pin ──────────────────────────────────────────────────
+const togglePin = asyncHandler(async (req, res) => {
+    const file = await File.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+        isTrashed: false,
+    });
+
+    if (!file) {
+        return sendError(res, "File not found", 404);
+    }
+
+    file.isPinned = !file.isPinned;
+    await file.save();
+
+    return sendSuccess(res, file.isPinned ? "File pinned" : "File unpinned", { file });
+});
+
+// ─── PATCH /api/files/:id/rename ──────────────────────────────────────────────
+const renameFile = asyncHandler(async (req, res) => {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+        return sendError(res, "Name is required", 400);
+    }
+
+    const file = await File.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+        isTrashed: false,
+    });
+
+    if (!file) {
+        return sendError(res, "File not found", 404);
+    }
+
+    file.originalName = name.trim();
+    await file.save();
+
+    return sendSuccess(res, "File renamed", { file });
+});
+
+// ─── POST /api/files/:id/copy ─────────────────────────────────────────────────
+// Copy file to a target folder (or root)
+const copyFile = asyncHandler(async (req, res) => {
+    const { targetFolderId } = req.body;
+
+    const file = await File.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+        isTrashed: false,
+    });
+
+    if (!file) {
+        return sendError(res, "File not found", 404);
+    }
+
+    // Validate target folder if provided
+    if (targetFolderId && targetFolderId !== "null") {
+        const folder = await Folder.findOne({
+            _id: targetFolderId,
+            userId: req.user._id,
+            isTrashed: false,
+        });
+        if (!folder) {
+            return sendError(res, "Target folder not found", 404);
+        }
+    }
+
+    // Physically copy the file
+    const originalAbsPath = path.isAbsolute(file.path)
+        ? file.path
+        : path.join(__dirname, "../", file.path);
+
+    const ext = path.extname(file.filename);
+    const newFilename = `${Date.now()}-copy-${file.filename}`;
+    const newFilePath = path.join(path.dirname(originalAbsPath), newFilename);
+
+    try {
+        fs.copyFileSync(originalAbsPath, newFilePath);
+    } catch (err) {
+        return sendError(res, "Failed to copy file on disk", 500);
+    }
+
+    const relativePath = path.relative(
+        path.join(__dirname, "../"),
+        newFilePath
+    ).replace(/\\/g, "/");
+
+    // Create new file record
+    const newFile = await File.create({
+        filename: newFilename,
+        originalName: `Copy of ${file.originalName}`,
+        path: relativePath,
+        mimetype: file.mimetype,
+        size: file.size,
+        extension: file.extension,
+        folderId: (targetFolderId && targetFolderId !== "null") ? targetFolderId : file.folderId,
+        userId: req.user._id,
+    });
+
+    // Update user's storage usage
+    await User.findByIdAndUpdate(req.user._id, {
+        $inc: { storageUsed: file.size },
+    });
+
+    return sendCreated(res, "File copied successfully", {
+        file: {
+            ...newFile.toObject(),
+            url: buildFileUrl(req, newFilename),
+        },
+    });
+});
+
+// ─── POST /api/files/:id/share-token ──────────────────────────────────────────
+// Generate or return existing share token for QR code
+const generateShareToken = asyncHandler(async (req, res) => {
+    const file = await File.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+        isTrashed: false,
+    });
+
+    if (!file) {
+        return sendError(res, "File not found", 404);
+    }
+
+    if (!file.shareToken) {
+        file.shareToken = crypto.randomBytes(32).toString("hex");
+        await file.save();
+    }
+
+    return sendSuccess(res, "Share token generated", {
+        shareToken: file.shareToken,
+        shareUrl: `${process.env.CLIENT_URL || "http://localhost:5173"}/share/file/${file.shareToken}`,
+    });
+});
+
+// ─── GET /api/files/shared/:token ─────────────────────────────────────────────
+// Public endpoint — no auth needed. Returns file info for QR code scan
+const getSharedFile = asyncHandler(async (req, res) => {
+    const file = await File.findOne({
+        shareToken: req.params.token,
+        isTrashed: false,
+    }).populate("userId", "name");
+
+    if (!file) {
+        return sendError(res, "Shared file not found or link expired", 404);
+    }
+
+    return sendSuccess(res, "Shared file fetched", {
+        file: {
+            _id: file._id,
+            originalName: file.originalName,
+            mimetype: file.mimetype,
+            size: file.size,
+            extension: file.extension,
+            url: buildFileUrl(req, file.filename),
+            sharedBy: file.userId?.name,
+            createdAt: file.createdAt,
+        },
+    });
+});
+
 // ─── PATCH /api/files/:id/move ─────────────────────────────────────────────────
 const moveFile = asyncHandler(async (req, res) => {
     const { targetFolderId } = req.body;
@@ -335,6 +518,12 @@ module.exports = {
     getFileById,
     downloadFile,
     toggleStar,
+    toggleHide,
+    togglePin,
+    renameFile,
+    copyFile,
+    generateShareToken,
+    getSharedFile,
     moveFile,
     deleteFile,
     permanentDeleteFile,

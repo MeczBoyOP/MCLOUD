@@ -29,8 +29,33 @@ export const moveFolder = async ({ id, targetFolderId }) => {
     return response.data;
 };
 
+export const copyFolder = async ({ id, targetFolderId }) => {
+    const response = await api.post(`/folders/${id}/copy`, { targetFolderId });
+    return response.data;
+};
+
 export const toggleFolderStar = async (id) => {
     const response = await api.patch(`/folders/${id}/star`);
+    return response.data;
+};
+
+export const toggleFolderHide = async (id) => {
+    const response = await api.patch(`/folders/${id}/hide`);
+    return response.data;
+};
+
+export const toggleFolderPin = async (id) => {
+    const response = await api.patch(`/folders/${id}/pin`);
+    return response.data;
+};
+
+export const generateFolderShareToken = async (id) => {
+    const response = await api.post(`/folders/${id}/share-token`);
+    return response.data;
+};
+
+export const getSharedFolder = async (token) => {
+    const response = await api.get(`/folders/shared/${token}`);
     return response.data;
 };
 

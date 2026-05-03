@@ -1,524 +1,456 @@
-import { useState, useRef, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import {
-    Folder, FolderOpen, FolderPlus, Upload, MoreVertical,
-    Copy, Clipboard, Download, EyeOff, Eye, Pin, QrCode,
-    Trash2, X, Check, ChevronRight, Home,
-    FileText, FileImage, FileSpreadsheet, FileArchive, FileBadge,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-
+import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getFolders, createFolder as apiCreateFolder, deleteFolder as apiDeleteFolder, getFolderBreadcrumb, moveFolder as apiMoveFolder } from "../../features/folders/services/folderAPI";
-import { getFiles, uploadFile as apiUploadFile, deleteFile as apiDeleteFile, downloadFileUrl, moveFile as apiMoveFile } from "../../features/files/services/fileAPI";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    Folder, FileText, FileImage, FileSpreadsheet, FileBadge,
+    MoreVertical, FolderPlus, FilePlus, ChevronRight,
+    Star, Trash2, Pencil, Copy, ClipboardPaste, QrCode, Search, Share2,
+    EyeOff, Eye, Pin, PinOff, Lock, UserCircle, Download
+} from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "../../context/AuthContext";
 
+// Services
+import {
+    getFolders, createFolder, renameFolder, moveFolder,
+    toggleFolderStar, deleteFolder, getFolderBreadcrumb, toggleFolderHide, toggleFolderPin, copyFolder
+} from "../../features/folders/services/folderAPI";
+import {
+    getFiles, uploadFile, renameFile, moveFile, copyFile,
+    toggleFileStar, deleteFile, toggleFileHide, toggleFilePin, downloadFileUrl
+} from "../../features/files/services/fileAPI";
+
+// Modals
+import {
+    AddFolderModal, RenameModal, DeleteModal, QRModal,
+    FilePreviewModal, PinModal, NoPinSetModal
+} from "../components/FileModals";
+
+/* ── UI Helpers ──────────────────────────────────────────────────── */
 const FICON = {
-    pdf: <FileBadge size={20} className="text-red-400" />,
-    excel: <FileSpreadsheet size={20} className="text-green-400" />,
-    image: <FileImage size={20} className="text-purple-400" />,
-    doc: <FileText size={20} className="text-blue-300" />,
+    pdf: <FileBadge size={28} className="text-red-400" />,
+    excel: <FileSpreadsheet size={28} className="text-green-400" />,
+    image: <FileImage size={28} className="text-purple-400" />,
+    doc: <FileText size={28} className="text-blue-300" />,
 };
 
-/* ── Context Menu ────────────────────────────────────────────────── */
-const CtxMenu = ({ item, isFolder, hidden, pinned, pos, onClose, onAction }) => {
+const fmt = (b) => {
+    if (!b || b === 0) return "0 B";
+    const k = 1024, s = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(b) / Math.log(k));
+    return parseFloat((b / Math.pow(k, i)).toFixed(2)) + " " + s[i];
+};
+
+/* ── Context Menu Component ──────────────────────────────────────── */
+const CtxMenu = ({ item, isFolder, close, onAction, hidePinSet, rect }) => {
     const ref = useRef(null);
     useEffect(() => {
-        const h = e => { if (!ref.current?.contains(e.target)) onClose(); };
+        const h = e => { if (!ref.current?.contains(e.target)) close(); };
         document.addEventListener("mousedown", h);
         return () => document.removeEventListener("mousedown", h);
-    }, [onClose]);
+    }, [close]);
 
-    const options = [
-        { label: "Copy", icon: Copy, act: "copy" },
-        { label: "Paste", icon: Clipboard, act: "paste" },
-        { label: isFolder ? "Download as ZIP" : "Download", icon: Download, act: "download" },
-        { label: hidden ? "Unhide" : "Hide", icon: hidden ? Eye : EyeOff, act: "hide" },
-        { label: pinned ? "Unpin" : "Pin", icon: Pin, act: "pin" },
-        { label: "QR Code", icon: QrCode, act: "qr" },
-        { label: "Delete", icon: Trash2, act: "delete", danger: true },
-    ];
+    // Calculate position to keep it in viewport
+    const menuWidth = 176; // w-44 = 176px
+    const menuHeight = 300; // approx height
+    let top = rect?.bottom || 0;
+    let left = (rect?.right || 0) - menuWidth;
+    
+    // Prevent falling off bottom of screen
+    if (top + menuHeight > window.innerHeight) {
+        top = (rect?.top || 0) - menuHeight;
+    }
 
     return (
-        <motion.div ref={ref} initial={{ opacity: 0, scale: .95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .95 }}
-            transition={{ duration: .1 }} style={{ top: pos.y, left: pos.x }}
-            className="fixed z-999 min-w-[190px] bg-[#111117] border border-white/10 rounded-xl shadow-2xl py-1 overflow-hidden"
-        >
-            <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
-                <span className="text-xs text-gray-400 truncate max-w-[140px]">{item.name}</span>
-                <button onClick={onClose}><X size={12} className="text-gray-500 hover:text-white" /></button>
-            </div>
-            {options.map(o => (
-                <button key={o.act} onClick={() => { onAction(o.act); onClose(); }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition
-            ${o.danger ? "text-red-400 hover:bg-red-500/10" : "text-gray-300 hover:bg-white/5 hover:text-white"}`}
-                >
-                    <o.icon size={13} className={o.danger ? "text-red-400" : "text-blue-400"} />
-                    {o.label}
+        <motion.div ref={ref} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            style={{ position: 'fixed', top, left }}
+            className="w-44 bg-[#0f0f18] border border-white/10 rounded-xl shadow-2xl py-1 z-50">
+            {!isFolder && (
+                <button onClick={() => { onAction('preview', item, isFolder); close(); }} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2">
+                    <Eye size={14} /> View
                 </button>
-            ))}
+            )}
+            <button onClick={() => { onAction('rename', item, isFolder); close(); }} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2">
+                <Pencil size={14} /> Rename
+            </button>
+            <button onClick={() => { onAction('copy', item, isFolder); close(); }} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2">
+                <Copy size={14} /> Copy
+            </button>
+            <div className="h-px bg-white/10 my-1 mx-2" />
+            <button onClick={() => { onAction('star', item, isFolder); close(); }} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2">
+                <Star size={14} className={item.isStarred ? "fill-amber-400 text-amber-400" : ""} /> {item.isStarred ? 'Unstar' : 'Star'}
+            </button>
+            <button onClick={() => { onAction('pin', item, isFolder); close(); }} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2">
+                {item.isPinned ? <PinOff size={14} /> : <Pin size={14} />} {item.isPinned ? 'Unpin' : 'Pin to top'}
+            </button>
+            <button onClick={() => { onAction('hide', item, isFolder); close(); }} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2">
+                {item.isHidden ? <Eye size={14} /> : <EyeOff size={14} />} {item.isHidden ? 'Unhide' : 'Hide'}
+            </button>
+            <div className="h-px bg-white/10 my-1 mx-2" />
+            <button onClick={() => { onAction('qr', item, isFolder); close(); }} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2">
+                <QrCode size={14} /> Share QR
+            </button>
+            {!isFolder && (
+                <button onClick={() => { onAction('download', item, isFolder); close(); }} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2">
+                    <Download size={14} /> Download
+                </button>
+            )}
+            <div className="h-px bg-white/10 my-1 mx-2" />
+            <button onClick={() => { onAction('delete', item, isFolder); close(); }} className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2">
+                <Trash2 size={14} /> Delete
+            </button>
         </motion.div>
     );
 };
 
-/* ── QR Modal ────────────────────────────────────────────────────── */
-const QRModal = ({ item, onClose }) => {
-    const url = `https://mcloud.app/share/${item.id}`;
-    const src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}&bgcolor=111117&color=60a5fa&margin=10`;
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <motion.div initial={{ scale: .9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: .9, opacity: 0 }}
-                className="relative z-10 bg-[#0f0f13] border border-white/10 rounded-2xl p-6 w-72 shadow-2xl text-center"
-            >
-                <h2 className="text-sm font-semibold mb-1 truncate">{item.name}</h2>
-                <p className="text-xs text-gray-500 mb-4 break-all">{url}</p>
-                <div className="flex justify-center mb-4 rounded-xl overflow-hidden bg-[#111117] p-2">
-                    <img src={src} alt="QR Code" className="w-44 h-44 rounded" />
-                </div>
-                <p className="text-xs text-gray-400 mb-4">Scan to open shared link</p>
-                <button onClick={onClose} className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm text-white transition">Close</button>
-            </motion.div>
-        </div>
-    );
-};
-
-/* ── Add Folder Modal ────────────────────────────────────────────── */
-const AddFolderModal = ({ onClose, onCreate }) => {
-    const [name, setName] = useState("");
-    const ref = useRef(null);
-    useEffect(() => ref.current?.focus(), []);
-    const submit = () => { if (name.trim()) { onCreate(name.trim()); onClose(); } };
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-            <motion.div initial={{ scale: .9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: .9, opacity: 0 }}
-                className="relative z-10 bg-[#0f0f13] border border-white/10 rounded-2xl p-6 w-80 shadow-2xl"
-            >
-                <h2 className="text-base font-semibold mb-4 flex items-center gap-2"><FolderPlus size={16} className="text-blue-400" />New Folder</h2>
-                <input ref={ref} value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()}
-                    placeholder="Folder name…"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-blue-500/60 transition"
-                />
-                <div className="flex gap-2 mt-4 justify-end">
-                    <button onClick={onClose} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition">Cancel</button>
-                    <button onClick={submit} className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm text-white transition">Create</button>
-                </div>
-            </motion.div>
-        </div>
-    );
-};
-
-/* ── Delete Modal ────────────────────────────────────────────────── */
-const DeleteModal = ({ item, onClose, onConfirm }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-        <motion.div initial={{ scale: .9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: .9, opacity: 0 }}
-            className="relative z-10 bg-[#0f0f13] border border-white/10 rounded-2xl p-6 w-80 shadow-2xl"
-        >
-            <h2 className="text-base font-semibold mb-2 text-red-400 flex items-center gap-2"><Trash2 size={16} />Delete</h2>
-            <p className="text-sm text-gray-400 mb-5">Delete <span className="text-white font-medium">"{item.name}"</span>? This cannot be undone.</p>
-            <div className="flex gap-2 justify-end">
-                <button onClick={onClose} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition">Cancel</button>
-                <button onClick={() => { onConfirm(); onClose(); }} className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-sm text-white transition">Delete</button>
-            </div>
-        </motion.div>
-    </div>
-);
-
-/* ── Upload Toast ────────────────────────────────────────────────── */
-const UploadToast = ({ name, onDone }) => {
-    const [p, setP] = useState(0);
-    useEffect(() => {
-        const t = setInterval(() => setP(v => { if (v >= 100) { clearInterval(t); setTimeout(onDone, 600); return 100; } return v + Math.random() * 20; }), 110);
-        return () => clearInterval(t);
-    }, [onDone]);
-    return (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 right-6 z-50 bg-[#111117] border border-white/10 rounded-xl px-4 py-3 w-64 shadow-2xl"
-        >
-            <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-white truncate max-w-[170px]">{name}</span>
-                {p >= 100 && <Check size={13} className="text-green-400 shrink-0" />}
-            </div>
-            <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${Math.min(p, 100)}%` }} />
-            </div>
-            <p className="text-[10px] text-gray-500 mt-1">{p >= 100 ? "Done" : `${Math.round(Math.min(p, 100))}%`}</p>
-        </motion.div>
-    );
-};
-
-/* ── Main Page ───────────────────────────────────────────────────── */
+/* ── Main Component ──────────────────────────────────────────────── */
 const MyFiles = () => {
-    const [params, setParams] = useSearchParams();
-    const fid = params.get("fid") || "root";
+    const { user, refreshUser } = useAuth();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const folderId = searchParams.get("folderId") || searchParams.get("fid") || null;
     const queryClient = useQueryClient();
+    const fileInputRef = useRef(null);
 
-    const [hidden, setHidden] = useState(new Set());
-    const [pinned, setPinned] = useState(new Set());
-    const [clipboard, setClipboard] = useState(null); // {item, isFolder}
+    // Context Menu State
+    const [menuOpen, setMenuOpen] = useState(null); // { id, isFolder, item }
 
-    const [ctx, setCtx] = useState(null);  // {item,isFolder,pos}
-    const [modal, setModal] = useState(null);  // {type, item}
-    const [uploads, setUploads] = useState([]);
-    const fileRef = useRef(null);
-    const [isDragOverRoot, setIsDragOverRoot] = useState(false);
-    const [isDragOverMain, setIsDragOverMain] = useState(false);
+    // Modal States
+    const [modal, setModal] = useState({ type: null, item: null, isFolder: false });
+    const [pinUnlockTarget, setPinUnlockTarget] = useState(null); // The action waiting for PIN
 
-    // Queries
-    const isRoot = fid === "root";
-    const parentIdParam = isRoot ? null : fid;
+    // Clipboard
+    const [clipboard, setClipboard] = useState(null); // { type: 'copy', item: {id, isFolder} }
 
-    const { data: folderData, isLoading: foldersLoading } = useQuery({
-        queryKey: ['folders', fid],
-        queryFn: () => getFolders({ parentId: parentIdParam })
+    // Data fetching
+    const { data: bData } = useQuery({
+        queryKey: ['breadcrumb', folderId],
+        queryFn: () => folderId ? getFolderBreadcrumb(folderId) : null,
+        enabled: !!folderId
+    });
+    const breadcrumb = bData?.data?.breadcrumb || [];
+
+    const { data: folderData, isLoading: fLoad } = useQuery({
+        queryKey: ['folders', folderId],
+        queryFn: () => getFolders({ parentId: folderId })
     });
 
-    const { data: fileData, isLoading: filesLoading } = useQuery({
-        queryKey: ['files', fid],
-        queryFn: () => getFiles({ folderId: parentIdParam })
+    const { data: fileData, isLoading: fileLoad } = useQuery({
+        queryKey: ['files', folderId],
+        queryFn: () => getFiles({ folderId: folderId || "null" })
     });
 
-    const { data: breadcrumbData } = useQuery({
-        queryKey: ['breadcrumb', fid],
-        queryFn: () => getFolderBreadcrumb(fid),
-        enabled: !isRoot,
-    });
+    const isLoading = fLoad || fileLoad;
+    let folders = folderData?.data?.folders || [];
+    let files = fileData?.data?.files || [];
 
-    const breadcrumbs = isRoot ? [] : (breadcrumbData?.data?.breadcrumb || []);
+    // Sort: Pinned first
+    folders = [...folders].sort((a, b) => (b.isPinned === a.isPinned ? 0 : b.isPinned ? 1 : -1));
+    files = [...files].sort((a, b) => (b.isPinned === a.isPinned ? 0 : b.isPinned ? 1 : -1));
 
-    const foldersList = folderData?.data?.folders || [];
-    const filesList = fileData?.data?.files || [];
+    /* ── Action Handlers ───────────────────────────────────────────── */
+    const handleAction = async (action, item, isFolder) => {
+        // PIN check for hiding/unhiding
+        if (action === "hide") {
+            if (!user?.hidePinSet) { setModal({ type: "no-pin" }); return; }
+            setPinUnlockTarget({ action, item, isFolder });
+            setModal({ type: "pin-verify" });
+            return;
+        }
 
-    // Mutations
-    const createFolderMutation = useMutation({
-        mutationFn: apiCreateFolder,
+        switch (action) {
+            case "rename":
+                setModal({ type: "rename", item, isFolder });
+                break;
+            case "delete":
+                setModal({ type: "delete", item, isFolder });
+                break;
+            case "qr":
+                setModal({ type: "qr", item, isFolder });
+                break;
+            case "preview":
+                setModal({ type: "preview", item, isFolder: false });
+                break;
+            case "copy":
+                setClipboard({ type: 'copy', item: { ...item, isFolder } });
+                toast.success(`Copied "${item.name || item.originalName}". Go to a folder and Paste.`);
+                break;
+            case "star":
+                const starFn = isFolder ? toggleFolderStar : toggleFileStar;
+                toast.promise(starFn(item._id), {
+                    loading: "Updating...",
+                    success: () => {
+                        queryClient.invalidateQueries([isFolder ? 'folders' : 'files', folderId]);
+                        return "Updated";
+                    },
+                    error: "Failed to update star"
+                });
+                break;
+            case "pin":
+                const pinFn = isFolder ? toggleFolderPin : toggleFilePin;
+                toast.promise(pinFn(item._id), {
+                    loading: "Updating pin...",
+                    success: () => {
+                        queryClient.invalidateQueries([isFolder ? 'folders' : 'files', folderId]);
+                        return item.isPinned ? "Unpinned" : "Pinned to top";
+                    },
+                    error: "Failed to update pin"
+                });
+                break;
+            case "download":
+                if (!isFolder) {
+                    downloadFileUrl(item._id).then(res => {
+                        const url = window.URL.createObjectURL(new Blob([res.data]));
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = item.originalName;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    }).catch(() => toast.error("Download failed"));
+                }
+                break;
+            default: break;
+        }
+    };
+
+    const handlePinVerified = async (pin) => {
+        try {
+            // Very simple verify via API
+            const { verifyHidePin } = await import("../../features/auth/services/profileAPI");
+            await verifyHidePin(pin);
+
+            // If verified, proceed with action
+            if (pinUnlockTarget) {
+                const { action, item, isFolder } = pinUnlockTarget;
+                if (action === "hide") {
+                    const hideFn = isFolder ? toggleFolderHide : toggleFileHide;
+                    await hideFn(item._id);
+                    queryClient.invalidateQueries([isFolder ? 'folders' : 'files', folderId]);
+                    toast.success(item.isHidden ? "Item unhidden" : "Item hidden securely");
+                }
+                // Could handle access to hidden folder here if we wanted
+            }
+            setModal({ type: null });
+            setPinUnlockTarget(null);
+        } catch (e) {
+            toast.error("Incorrect PIN");
+        }
+    };
+
+    const handlePaste = async () => {
+        if (!clipboard) return;
+        const { item, isFolder } = clipboard.item;
+        const targetId = folderId || "null";
+
+        const pasteFn = clipboard.item.isFolder ? copyFolder : copyFile;
+
+        toast.promise(pasteFn({ id: clipboard.item._id, targetFolderId: targetId }), {
+            loading: clipboard.item.isFolder ? "Copying folder and contents..." : "Copying file...",
+            success: () => {
+                queryClient.invalidateQueries(['folders', folderId]);
+                queryClient.invalidateQueries(['files', folderId]);
+                setClipboard(null); // Clear after paste
+                refreshUser(); // Update storage
+                return "Pasted successfully";
+            },
+            error: "Failed to paste"
+        });
+    };
+
+    const uploadMut = useMutation({
+        mutationFn: uploadFile,
         onSuccess: () => {
-            toast.success("Folder created");
-            queryClient.invalidateQueries(['folders', fid]);
-        },
-        onError: () => toast.error("Failed to create folder")
-    });
-
-    const deleteFolderMutation = useMutation({
-        mutationFn: apiDeleteFolder,
-        onSuccess: () => {
-            toast.success("Folder deleted");
-            queryClient.invalidateQueries(['folders', fid]);
-        },
-        onError: () => toast.error("Failed to delete folder")
-    });
-
-    const deleteFileMutation = useMutation({
-        mutationFn: apiDeleteFile,
-        onSuccess: () => {
-            toast.success("File deleted");
-            queryClient.invalidateQueries(['files', fid]);
-        },
-        onError: () => toast.error("Failed to delete file")
-    });
-
-    const uploadMutation = useMutation({
-        mutationFn: apiUploadFile,
-        onSuccess: () => {
+            queryClient.invalidateQueries(['files', folderId]);
             toast.success("File uploaded");
-            queryClient.invalidateQueries(['files', fid]);
+            refreshUser();
         },
         onError: () => toast.error("Upload failed")
     });
 
-    const moveFolderMutation = useMutation({
-        mutationFn: apiMoveFolder,
-        onSuccess: () => {
-            toast.success("Folder moved");
-            queryClient.invalidateQueries(['folders']); // invalidate all to update sidebar
-        },
-        onError: (err) => toast.error(err.response?.data?.message || "Failed to move folder")
-    });
-
-    const moveFileMutation = useMutation({
-        mutationFn: apiMoveFile,
-        onSuccess: () => {
-            toast.success("File moved");
-            queryClient.invalidateQueries(['files']);
-        },
-        onError: (err) => toast.error(err.response?.data?.message || "Failed to move file")
-    });
-
-    /* navigate */
-    const openFolder = id => setParams({ fid: id });
-
-    /* drop handler */
-    const handleDropOnFolder = (e, targetFolderId) => {
-        e.preventDefault();
-        e.stopPropagation();
-        try {
-            const data = JSON.parse(e.dataTransfer.getData("application/json"));
-            if (!data || !data.id || !data.type) return;
-            // Target folder can be string "null" for root
-            if (data.id === targetFolderId) return;
-
-            if (data.type === 'folder') {
-                moveFolderMutation.mutate({ id: data.id, targetFolderId });
-            } else if (data.type === 'file') {
-                moveFileMutation.mutate({ id: data.id, targetFolderId });
-            }
-        } catch (err) {
-            // ignore invalid drops
-        }
+    const handleUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append("file", file);
+        if (folderId) formData.append("folderId", folderId);
+        toast.promise(uploadMut.mutateAsync(formData), {
+            loading: "Uploading...",
+            success: "Uploaded",
+            error: "Failed to upload"
+        });
+        e.target.value = null; // reset
     };
 
-    /* context menu */
-    const openCtx = (e, item, isFolder) => {
-        e.stopPropagation();
-        const r = e.currentTarget.getBoundingClientRect();
-        setCtx({ item, isFolder, pos: { x: r.left, y: r.bottom + 4 } });
-    };
-
-    /* context actions */
-    const handleAction = async (act) => {
-        if (!ctx) return;
-        const { item, isFolder } = ctx;
-        const id = item._id || item.id;
-
-        if (act === "hide") { setHidden(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; }); return; }
-        if (act === "pin") { setPinned(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; }); return; }
-        if (act === "copy") { setClipboard({ item, isFolder }); return; }
-        if (act === "paste") { handlePaste(); return; }
-        if (act === "qr") { setModal({ type: "qr", item }); return; }
-        if (act === "delete") { setModal({ type: "delete", item, isFolder }); return; }
-        if (act === "download") {
-            if (!isFolder) {
-                try {
-                    const response = await downloadFileUrl(id);
-                    const url = window.URL.createObjectURL(new Blob([response.data]));
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.setAttribute('download', item.originalName || item.name);
-                    document.body.appendChild(link);
-                    link.click();
-                    link.remove();
-                } catch (err) {
-                    toast.error("Download failed");
-                }
-            } else {
-                toast.info("Folder download not supported yet");
-            }
+    const handleItemClick = (item, isFolder) => {
+        if (item.isHidden) {
+            toast.error("This item is hidden. Unhide it to access.");
             return;
         }
+        if (isFolder) navigate(`/user/files?folderId=${item._id}`);
+        else setModal({ type: "preview", item, isFolder: false });
     };
-
-    const handlePaste = () => {
-        if (!clipboard) return;
-        toast.info("Paste not fully implemented via API yet");
-    };
-
-    /* add folder */
-    const createFolder = (name) => {
-        createFolderMutation.mutate({ name, parentId: parentIdParam });
-    };
-
-    /* delete */
-    const handleDelete = () => {
-        if (!modal) return;
-        const { item, isFolder } = modal;
-        const id = item._id || item.id;
-        if (isFolder) {
-            deleteFolderMutation.mutate(id);
-        } else {
-            deleteFileMutation.mutate(id);
-        }
-    };
-
-    /* upload */
-    const handleUpload = e => {
-        Array.from(e.target.files || []).forEach(f => {
-            const formData = new FormData();
-            formData.append("file", f);
-            if (!isRoot) formData.append("folderId", fid);
-
-            const uid = `_${Date.now() + Math.random()}`;
-            setUploads(p => [...p, { id: uid, name: f.name }]);
-            uploadMutation.mutate(formData);
-        });
-        e.target.value = "";
-    };
-
-    /* filter hidden */
-    const visibleFolders = foldersList.filter(f => !hidden.has(f._id));
-    const visibleFiles = filesList.filter(f => !hidden.has(f._id));
-    const pinnedFolders = visibleFolders.filter(f => pinned.has(f._id));
-    const normalFolders = visibleFolders.filter(f => !pinned.has(f._id));
-    const pinnedFiles = visibleFiles.filter(f => pinned.has(f._id));
-    const normalFiles = visibleFiles.filter(f => !pinned.has(f._id));
-
-    const FolderCard = ({ f }) => {
-        const [isDragOver, setIsDragOver] = useState(false);
-        return (
-            <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: .9 }}
-                whileHover={{ y: -2 }} onClick={() => openFolder(f._id)}
-                draggable
-                onDragStart={(e) => {
-                    e.dataTransfer.setData("application/json", JSON.stringify({ type: 'folder', id: f._id }));
-                }}
-                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false); }}
-                onDrop={(e) => { setIsDragOver(false); handleDropOnFolder(e, f._id); }}
-                className={`group relative p-4 rounded-xl bg-white/5 border 
-                 transition-all duration-300 cursor-pointer
-                 ${isDragOver ? "border-blue-500 shadow-[0_0_22px_rgba(37,99,235,0.4)]" : "border-white/10 hover:border-blue-500/40 hover:shadow-[0_0_22px_rgba(37,99,235,0.18)]"}`}
-            >
-                {pinned.has(f._id) && <Pin size={10} className="absolute top-2 left-2 text-blue-400 fill-blue-400" />}
-                <div className="flex items-start justify-between mb-3">
-                    <div className="p-2 rounded-lg bg-blue-500/10">
-                        <Folder size={18} className="text-blue-400" />
-                    </div>
-                    <button onClick={e => openCtx(e, f, true)}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition">
-                        <MoreVertical size={14} />
-                    </button>
-                </div>
-                <p className="text-sm font-medium truncate">{f.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{new Date(f.createdAt).toLocaleDateString()}</p>
-            </motion.div>
-        )
-    };
-
-    const FileCard = ({ f }) => (
-        <motion.div layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: .9 }}
-            whileHover={{ y: -2 }}
-            draggable
-            onDragStart={(e) => {
-                e.dataTransfer.setData("application/json", JSON.stringify({ type: 'file', id: f._id }));
-            }}
-            className="group relative p-4 rounded-xl bg-white/5 border border-white/10
-                 hover:border-blue-500/30 hover:shadow-[0_0_18px_rgba(37,99,235,0.12)]
-                 transition-all duration-300 cursor-default"
-        >
-            {pinned.has(f._id) && <Pin size={10} className="absolute top-2 left-2 text-blue-400 fill-blue-400" />}
-            <div className="flex items-start justify-between mb-3">
-                <div className="p-2 rounded-lg bg-white/5">{FICON[f.extension] || <FileText size={20} className="text-gray-300" />}</div>
-                <button onClick={e => openCtx(e, f, false)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition">
-                    <MoreVertical size={14} />
-                </button>
-            </div>
-            <p className="text-sm font-medium truncate">{f.originalName || f.name}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{new Date(f.createdAt).toLocaleDateString()} · {(f.size / (1024 * 1024)).toFixed(2)} MB</p>
-        </motion.div>
-    );
-
-    const Section = ({ label, items, Card }) => items.length > 0 && (
-        <section>
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">{label}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
-                <AnimatePresence>{items.map(i => <Card key={i.id || i._id} f={i} />)}</AnimatePresence>
-            </div>
-        </section>
-    );
 
     return (
-        <div
-            className={`space-y-6 pb-10 min-h-[50vh] rounded-2xl transition ${isDragOverMain ? "bg-white/2 ring-1 ring-white/10" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); setIsDragOverMain(true); }}
-            onDragLeave={(e) => { e.preventDefault(); setIsDragOverMain(false); }}
-            onDrop={(e) => { setIsDragOverMain(false); handleDropOnFolder(e, isRoot ? "null" : fid); }}
-        >
+        <div className="h-full flex flex-col space-y-6">
 
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* Header / Breadcrumb / Actions */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center text-xl font-semibold gap-2 overflow-x-auto whitespace-nowrap pb-1">
+                    <button onClick={() => navigate("/user/files")} className="hover:text-blue-400 transition text-gray-300">
+                        My Files
+                    </button>
+                    {breadcrumb.map(b => (
+                        <React.Fragment key={b._id}>
+                            <ChevronRight size={18} className="text-gray-500" />
+                            <button onClick={() => navigate(`/user/files?folderId=${b._id}`)} className="hover:text-blue-400 transition text-gray-300">
+                                {b.name}
+                            </button>
+                        </React.Fragment>
+                    ))}
+                </div>
 
-                {/* Breadcrumb */}
-                <nav className="flex items-center gap-1 flex-wrap">
-                    <span
-                        className={`flex items-center gap-1 rounded px-1 transition ${isDragOverRoot ? "bg-white/10" : ""}`}
-                        onDragOver={e => { e.preventDefault(); setIsDragOverRoot(true); }}
-                        onDragLeave={e => { e.preventDefault(); setIsDragOverRoot(false); }}
-                        onDrop={e => { setIsDragOverRoot(false); handleDropOnFolder(e, "null"); }}
-                    >
-                        <button onClick={() => openFolder("root")}
-                            className={`text-sm transition ${isRoot ? "text-white font-medium" : "text-gray-400 hover:text-white"}`}
-                        >
-                            <Home size={14} className="inline -mt-0.5" />
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    {clipboard && (
+                        <button onClick={handlePaste} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 text-sm font-medium transition">
+                            <ClipboardPaste size={16} /> Paste
                         </button>
-                    </span>
-                    {breadcrumbs.map((b, i) => {
-                        const isLast = i === breadcrumbs.length - 1;
-                        return (
-                            <span
-                                key={b.id || b._id}
-                                className="flex items-center gap-1 rounded px-1 transition hover:bg-white/5"
-                                onDragOver={e => { e.preventDefault(); }}
-                                onDrop={e => { handleDropOnFolder(e, b.id || b._id); }}
-                            >
-                                <ChevronRight size={13} className="text-gray-600" />
-                                <button onClick={() => openFolder(b.id || b._id)}
-                                    className={`text-sm transition ${isLast
-                                        ? "text-white font-medium"
-                                        : "text-gray-400 hover:text-white"}`}
-                                >
-                                    {b.name}
-                                </button>
-                            </span>
-                        );
-                    })}
-                </nav>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => setModal({ type: "addFolder" })}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10
-                       text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/20 transition">
-                        <FolderPlus size={14} className="text-blue-400" /> Add Folder
+                    )}
+                    <button onClick={() => setModal({ type: "add-folder" })} className="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm font-medium transition">
+                        <FolderPlus size={16} /> New Folder
                     </button>
-                    <button onClick={() => fileRef.current?.click()}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm bg-blue-600 hover:bg-blue-500
-                       text-white font-medium shadow-[0_0_16px_rgba(37,99,235,0.35)] transition">
-                        <Upload size={14} /> Upload File
+                    <button onClick={() => fileInputRef.current?.click()} className="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition">
+                        <FilePlus size={16} /> Upload
                     </button>
-                    <input ref={fileRef} type="file" multiple className="hidden" onChange={handleUpload} />
+                    <input type="file" ref={fileInputRef} onChange={handleUpload} className="hidden" />
                 </div>
             </div>
 
-            {/* Grids */}
-            <Section label={pinned.size ? "📌 Pinned Folders" : ""} items={pinnedFolders} Card={FolderCard} />
-            <Section label="Folders" items={normalFolders} Card={FolderCard} />
-            <Section label={pinned.size ? "📌 Pinned Files" : ""} items={pinnedFiles} Card={FileCard} />
-            <Section label="Files" items={normalFiles} Card={FileCard} />
+            {/* Grid */}
+            <div className="flex-1 bg-black/20 border border-white/5 rounded-2xl p-6 overflow-y-auto">
+                {isLoading ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-32 bg-white/5 rounded-xl animate-pulse" />)}
+                    </div>
+                ) : (
+                    <>
+                        {folders.length === 0 && files.length === 0 && (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                                <Folder size={64} className="mb-4 opacity-20" />
+                                <p>This folder is empty</p>
+                            </div>
+                        )}
 
-            {normalFolders.length === 0 && normalFiles.length === 0 && pinnedFolders.length === 0 && pinnedFiles.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 text-gray-600">
-                    <Folder size={40} className="mb-3 opacity-30" />
-                    <p className="text-sm">This folder is empty</p>
-                </div>
-            )}
+                        {folders.length > 0 && (
+                            <div className="mb-8">
+                                <h3 className="text-xs text-gray-500 uppercase tracking-widest mb-4">Folders</h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                    {folders.map(f => (
+                                        <div key={f._id} className="relative group">
+                                            <div onClick={() => handleItemClick(f, true)} className={`cursor-pointer h-full p-4 rounded-xl border bg-gradient-to-b from-white/5 to-transparent transition-all duration-300 hover:shadow-lg ${f.isHidden ? 'opacity-50 border-white/5 border-dashed' : 'border-white/10 hover:border-blue-500/40'}`}>
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div className="p-2.5 bg-blue-500/10 rounded-lg">
+                                                        {f.isHidden ? <Lock size={20} className="text-gray-500" /> : <Folder size={20} className="text-blue-400" />}
+                                                    </div>
+                                                </div>
+                                                <h4 className="text-sm font-semibold text-white truncate pr-6">{f.name}</h4>
+                                                <p className="text-xs text-gray-500 mt-1">{new Date(f.createdAt).toLocaleDateString()}</p>
+                                                {f.isPinned && <Pin size={12} className="absolute bottom-4 right-4 text-amber-400" />}
+                                            </div>
+                                            <button onClick={(e) => {
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setMenuOpen({ id: f._id, isFolder: true, item: f, rect });
+                                            }}
+                                                className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition group-hover:opacity-100 opacity-60">
+                                                <MoreVertical size={16} />
+                                            </button>
+                                            {menuOpen?.id === f._id && <CtxMenu item={f} isFolder close={() => setMenuOpen(null)} onAction={handleAction} hidePinSet={user?.hidePinSet} rect={menuOpen.rect} />}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
-            {/* Context menu */}
-            <AnimatePresence>
-                {ctx && (
-                    <CtxMenu item={ctx.item} isFolder={ctx.isFolder}
-                        hidden={hidden} pinned={pinned}
-                        pos={ctx.pos} onClose={() => setCtx(null)}
-                        onAction={handleAction}
-                    />
+                        {files.length > 0 && (
+                            <div>
+                                <h3 className="text-xs text-gray-500 uppercase tracking-widest mb-4">Files</h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                    {files.map(f => (
+                                        <div key={f._id} className="relative group">
+                                            <div onClick={() => handleItemClick(f, false)} className={`cursor-pointer h-full p-4 rounded-xl border bg-gradient-to-b from-white/5 to-transparent transition-all duration-300 hover:shadow-lg ${f.isHidden ? 'opacity-50 border-white/5 border-dashed' : 'border-white/10 hover:border-blue-500/40'}`}>
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div className="p-2 bg-white/5 rounded-lg">
+                                                        {f.isHidden ? <Lock size={28} className="text-gray-500" /> : FICON[f.extension] || <FileText size={28} className="text-gray-300" />}
+                                                    </div>
+                                                </div>
+                                                <h4 className="text-sm font-medium text-white truncate pr-6">{f.originalName}</h4>
+                                                <p className="text-xs text-gray-500 mt-1">{fmt(f.size)}</p>
+                                                {f.isPinned && <Pin size={12} className="absolute bottom-4 right-4 text-amber-400" />}
+                                            </div>
+                                            <button onClick={(e) => {
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setMenuOpen({ id: f._id, isFolder: false, item: f, rect });
+                                            }}
+                                                className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition group-hover:opacity-100 opacity-60">
+                                                <MoreVertical size={16} />
+                                            </button>
+                                            {menuOpen?.id === f._id && <CtxMenu item={f} isFolder={false} close={() => setMenuOpen(null)} onAction={handleAction} hidePinSet={user?.hidePinSet} rect={menuOpen.rect} />}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
-            </AnimatePresence>
+            </div>
 
             {/* Modals */}
             <AnimatePresence>
-                {modal?.type === "addFolder" && <AddFolderModal onClose={() => setModal(null)} onCreate={createFolder} />}
-                {modal?.type === "qr" && <QRModal item={modal.item} onClose={() => setModal(null)} />}
-                {modal?.type === "delete" && <DeleteModal item={modal.item} onClose={() => setModal(null)} onConfirm={handleDelete} />}
+                {modal.type === "add-folder" && (
+                    <AddFolderModal onClose={() => setModal({ type: null })}
+                        onCreate={(name) => {
+                            toast.promise(createFolder({ name, parentId: folderId }), {
+                                loading: "Creating...", success: () => { queryClient.invalidateQueries(['folders', folderId]); return "Created"; }, error: "Failed"
+                            });
+                        }} />
+                )}
+                {modal.type === "rename" && (
+                    <RenameModal item={modal.item} onClose={() => setModal({ type: null })}
+                        onRename={(name) => {
+                            const fn = modal.isFolder ? renameFolder : renameFile;
+                            toast.promise(fn({ id: modal.item._id, name }), {
+                                loading: "Renaming...", success: () => { queryClient.invalidateQueries([modal.isFolder ? 'folders' : 'files', folderId]); return "Renamed"; }, error: "Failed"
+                            });
+                        }} />
+                )}
+                {modal.type === "delete" && (
+                    <DeleteModal item={modal.item} onClose={() => setModal({ type: null })}
+                        onConfirm={() => {
+                            const fn = modal.isFolder ? deleteFolder : deleteFile;
+                            toast.promise(fn(modal.item._id), {
+                                loading: "Deleting...", success: () => {
+                                    queryClient.invalidateQueries([modal.isFolder ? 'folders' : 'files', folderId]);
+                                    refreshUser();
+                                    return "Moved to trash";
+                                }, error: "Failed"
+                            });
+                        }} />
+                )}
+                {modal.type === "qr" && <QRModal item={modal.item} isFolder={modal.isFolder} onClose={() => setModal({ type: null })} />}
+                {modal.type === "preview" && (
+                    <FilePreviewModal file={modal.item} onClose={() => setModal({ type: null })}
+                        onDownload={() => {
+                            downloadFileUrl(modal.item._id).then(res => {
+                                const url = window.URL.createObjectURL(new Blob([res.data]));
+                                const a = document.createElement('a');
+                                a.href = url; a.download = modal.item.originalName; a.click();
+                                window.URL.revokeObjectURL(url);
+                            }).catch(() => toast.error("Download failed"));
+                        }} />
+                )}
+                {modal.type === "no-pin" && <NoPinSetModal onClose={() => setModal({ type: null })} />}
+                {modal.type === "pin-verify" && <PinModal onClose={() => setModal({ type: null })} onVerified={handlePinVerified} />}
             </AnimatePresence>
-
-            {/* Upload toasts */}
-            <AnimatePresence>
-                {uploads.map(u => (
-                    <UploadToast key={u.id} name={u.name} onDone={() => setUploads(p => p.filter(x => x.id !== u.id))} />
-                ))}
-            </AnimatePresence>
-
         </div>
     );
 };

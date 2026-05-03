@@ -1,3 +1,6 @@
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const asyncHandler = require("../middleware/asyncHandler");
 const Folder = require("../models/Folder");
 const File = require("../models/File");
@@ -145,6 +148,223 @@ const toggleStar = asyncHandler(async (req, res) => {
     return sendSuccess(res, folder.isStarred ? "Folder starred" : "Folder unstarred", {
         folder,
     });
+});
+
+// ─── PATCH /api/folders/:id/hide ──────────────────────────────────────────────
+const toggleHide = asyncHandler(async (req, res) => {
+    const folder = await Folder.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+        isTrashed: false,
+    });
+
+    if (!folder) {
+        return sendError(res, "Folder not found", 404);
+    }
+
+    folder.isHidden = !folder.isHidden;
+    await folder.save();
+
+    return sendSuccess(res, folder.isHidden ? "Folder hidden" : "Folder unhidden", { folder });
+});
+
+// ─── PATCH /api/folders/:id/pin ───────────────────────────────────────────────
+const togglePin = asyncHandler(async (req, res) => {
+    const folder = await Folder.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+        isTrashed: false,
+    });
+
+    if (!folder) {
+        return sendError(res, "Folder not found", 404);
+    }
+
+    folder.isPinned = !folder.isPinned;
+    await folder.save();
+
+    return sendSuccess(res, folder.isPinned ? "Folder pinned" : "Folder unpinned", { folder });
+});
+
+// ─── POST /api/folders/:id/share-token ────────────────────────────────────────
+const generateShareToken = asyncHandler(async (req, res) => {
+    const folder = await Folder.findOne({
+        _id: req.params.id,
+        userId: req.user._id,
+        isTrashed: false,
+    });
+
+    if (!folder) {
+        return sendError(res, "Folder not found", 404);
+    }
+
+    if (!folder.shareToken) {
+        folder.shareToken = crypto.randomBytes(32).toString("hex");
+        await folder.save();
+    }
+
+    return sendSuccess(res, "Share token generated", {
+        shareToken: folder.shareToken,
+        shareUrl: `${process.env.CLIENT_URL || "http://localhost:5173"}/share/folder/${folder.shareToken}`,
+    });
+});
+
+// ─── GET /api/folders/shared/:token ───────────────────────────────────────────
+// Public — no auth. Returns folder with its non-hidden contents.
+const getSharedFolder = asyncHandler(async (req, res) => {
+    const folder = await Folder.findOne({
+        shareToken: req.params.token,
+        isTrashed: false,
+    }).populate("userId", "name");
+
+    if (!folder) {
+        return sendError(res, "Shared folder not found or link expired", 404);
+    }
+
+    // Return sub-folders and files that are NOT hidden
+    const [subFolders, files] = await Promise.all([
+        Folder.find({ parentId: folder._id, isTrashed: false }),
+        File.find({ folderId: folder._id, isTrashed: false }),
+    ]);
+
+    // Ensure all subfolders have a shareToken
+    const mappedSubFolders = await Promise.all(subFolders.map(async f => {
+        if (!f.shareToken) {
+            f.shareToken = crypto.randomBytes(32).toString("hex");
+            await f.save();
+        }
+        return {
+            _id: f._id,
+            name: f.name,
+            isHidden: f.isHidden,
+            createdAt: f.createdAt,
+            shareToken: f.shareToken
+        };
+    }));
+
+    // Ensure all files have a shareToken
+    const mappedFiles = await Promise.all(files.map(async f => {
+        if (!f.shareToken) {
+            f.shareToken = crypto.randomBytes(32).toString("hex");
+            await f.save();
+        }
+        return {
+            _id: f._id,
+            originalName: f.originalName,
+            mimetype: f.mimetype,
+            size: f.size,
+            extension: f.extension,
+            isHidden: f.isHidden,
+            createdAt: f.createdAt,
+            shareToken: f.shareToken
+        };
+    }));
+
+    return sendSuccess(res, "Shared folder fetched", {
+        folder: {
+            _id: folder._id,
+            name: folder.name,
+            sharedBy: folder.userId?.name,
+            createdAt: folder.createdAt,
+        },
+        subFolders: mappedSubFolders,
+        files: mappedFiles,
+    });
+});
+
+// ─── POST /api/folders/:id/copy ───────────────────────────────────────────────
+const copyFolder = asyncHandler(async (req, res) => {
+    const { targetFolderId } = req.body;
+    const sourceId = req.params.id;
+    const userId = req.user._id;
+
+    // Validate target folder if provided
+    if (targetFolderId && targetFolderId !== "null") {
+        const target = await Folder.findOne({
+            _id: targetFolderId,
+            userId,
+            isTrashed: false,
+        });
+        if (!target) {
+            return sendError(res, "Target folder not found", 404);
+        }
+
+        // Prevent copying into itself or its descendant
+        if (sourceId === targetFolderId) {
+            return sendError(res, "Cannot copy a folder into itself", 400);
+        }
+        const descendantIds = await getAllDescendantIds(sourceId, userId);
+        if (descendantIds.some(id => id.toString() === targetFolderId)) {
+            return sendError(res, "Cannot copy a folder into its own descendant", 400);
+        }
+    }
+
+    const duplicateFolderRecursive = async (currSourceId, currTargetParentId, isTopLevel) => {
+        const sourceFolder = await Folder.findOne({ _id: currSourceId, userId, isTrashed: false });
+        if (!sourceFolder) return null;
+
+        const newName = isTopLevel ? `Copy of ${sourceFolder.name}` : sourceFolder.name;
+
+        const newFolder = await Folder.create({
+            name: newName,
+            parentId: (currTargetParentId && currTargetParentId !== "null") ? currTargetParentId : null,
+            userId,
+            color: sourceFolder.color,
+            isHidden: sourceFolder.isHidden,
+            isPinned: false,
+            isStarred: false,
+        });
+
+        // Copy files
+        const files = await File.find({ folderId: currSourceId, userId, isTrashed: false });
+        for (const f of files) {
+            const originalAbsPath = path.isAbsolute(f.path)
+                ? f.path
+                : path.join(__dirname, "../", f.path);
+            
+            const newFilename = `${Date.now()}-copy-${f.filename}`;
+            const newFilePath = path.join(path.dirname(originalAbsPath), newFilename);
+            
+            try {
+                fs.copyFileSync(originalAbsPath, newFilePath);
+                const relativePath = path.relative(
+                    path.join(__dirname, "../"),
+                    newFilePath
+                ).replace(/\\/g, "/");
+                
+                await File.create({
+                    filename: newFilename,
+                    originalName: f.originalName,
+                    path: relativePath,
+                    mimetype: f.mimetype,
+                    size: f.size,
+                    extension: f.extension,
+                    folderId: newFolder._id,
+                    userId,
+                    isHidden: f.isHidden,
+                    isStarred: false,
+                    isPinned: false
+                });
+            } catch (err) {
+                console.error("Failed to copy file on disk during folder copy", err);
+            }
+        }
+
+        // Recursively copy subfolders
+        const subfolders = await Folder.find({ parentId: currSourceId, userId, isTrashed: false });
+        for (const sub of subfolders) {
+            await duplicateFolderRecursive(sub._id, newFolder._id, false);
+        }
+
+        return newFolder;
+    };
+
+    const newFolder = await duplicateFolderRecursive(sourceId, targetFolderId, true);
+    if (!newFolder) {
+        return sendError(res, "Source folder not found", 404);
+    }
+
+    return sendSuccess(res, "Folder copied successfully", { folder: newFolder });
 });
 
 // ─── PATCH /api/folders/:id/move ──────────────────────────────────────────────
@@ -331,10 +551,15 @@ module.exports = {
     getBreadcrumb,
     renameFolder,
     toggleStar,
+    toggleHide,
+    togglePin,
+    generateShareToken,
+    getSharedFolder,
     moveFolder,
     deleteFolder,
     permanentDeleteFolder,
     restoreFolder,
     getStarredFolders,
     getTrashFolders,
+    copyFolder,
 };

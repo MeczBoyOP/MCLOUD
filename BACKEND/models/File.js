@@ -51,6 +51,21 @@ const fileSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        // Hide/Pin support
+        isHidden: {
+            type: Boolean,
+            default: false,
+        },
+        isPinned: {
+            type: Boolean,
+            default: false,
+        },
+        // QR share token
+        shareToken: {
+            type: String,
+            default: null,
+            index: true,
+        },
         // Metadata
         extension: {
             type: String,

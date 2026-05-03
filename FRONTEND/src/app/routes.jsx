@@ -15,12 +15,17 @@ import UserDashboard from "../user/pages/UserDashboard";
 import MyFiles from "../user/pages/MyFiles";
 import Starred from "../user/pages/Starred";
 import Trash from "../user/pages/Trash";
+import UserProfile from "../user/pages/UserProfile";
 
 import AdminDashboard from "../admin/pages/AdminDashboard";
 import UserManagement from "../admin/components/UserManagement";
 import UserDetail from "../admin/pages/UserDetail";
 import AdminFiles from "../admin/pages/AdminFiles";
 import AdminActivity from "../admin/pages/AdminActivity";
+import AdminProfile from "../admin/pages/AdminProfile";
+
+import SharedFolderView from "../pages/SharedFolderView";
+import SharedFileView from "../pages/SharedFileView";
 
 import { ProtectedRoute, PublicRoute } from "../components/common/ProtectedRoutes";
 import { AdminRoute } from "../components/common/AdminRoute";
@@ -50,6 +55,7 @@ const AppRoutes = () => {
                     <Route path="/user/files"     element={<MyFiles />} />
                     <Route path="/user/starred"   element={<Starred />} />
                     <Route path="/user/trash"     element={<Trash />} />
+                    <Route path="/user/profile"   element={<UserProfile />} />
                 </Route>
             </Route>
 
@@ -61,8 +67,13 @@ const AppRoutes = () => {
                     <Route path="/admin/users/:id"    element={<UserDetail />} />
                     <Route path="/admin/files"        element={<AdminFiles />} />
                     <Route path="/admin/activity"     element={<AdminActivity />} />
+                    <Route path="/admin/profile"      element={<AdminProfile />} />
                 </Route>
             </Route>
+
+            {/* ================= PUBLIC SHARE ================= */}
+            <Route path="/share/folder/:token" element={<SharedFolderView />} />
+            <Route path="/share/file/:token" element={<SharedFileView />} />
 
             {/* ================= 404 ================= */}
             <Route path="*" element={<NotFound />} />

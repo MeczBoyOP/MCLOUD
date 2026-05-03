@@ -5,9 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { getFolders } from "../../features/folders/services/folderAPI";
 import { getFiles } from "../../features/files/services/fileAPI";
 import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const UserDashboard = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     const { data: folderData, isLoading: foldersLoading } = useQuery({
         queryKey: ['folders', 'root'],
@@ -45,8 +47,9 @@ const UserDashboard = () => {
                                 initial={{ opacity: 0, y: 30 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.05 }}
+                                onClick={() => navigate(`/user/files?folderId=${folder._id}`)}
                                 className="
-                                  group relative p-4 rounded-xl
+                                  cursor-pointer group relative p-4 rounded-xl
                                   bg-white/5 border border-white/10
                                   hover:border-blue-500/40
                                   transition-all duration-300

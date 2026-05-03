@@ -7,6 +7,12 @@ const {
     getFileById,
     downloadFile,
     toggleStar,
+    toggleHide,
+    togglePin,
+    renameFile,
+    copyFile,
+    generateShareToken,
+    getSharedFile,
     moveFile,
     deleteFile,
     permanentDeleteFile,
@@ -19,7 +25,10 @@ const {
 const { protect } = require("../middleware/auth");
 const upload = require("../config/multer");
 
-// All file routes require authentication
+// ─── Public route (no auth) ───────────────────────────────────────────────────
+router.get("/shared/:token", getSharedFile);
+
+// All remaining file routes require authentication
 router.use(protect);
 
 // Special named routes BEFORE /:id to avoid route conflicts
@@ -33,6 +42,11 @@ router.get("/", getFiles);
 router.get("/:id", getFileById);
 router.get("/:id/download", downloadFile);
 router.patch("/:id/star", toggleStar);
+router.patch("/:id/hide", toggleHide);
+router.patch("/:id/pin", togglePin);
+router.patch("/:id/rename", renameFile);
+router.post("/:id/copy", copyFile);
+router.post("/:id/share-token", generateShareToken);
 router.patch("/:id/move", moveFile);
 router.delete("/:id", deleteFile);
 router.delete("/:id/permanent", permanentDeleteFile);

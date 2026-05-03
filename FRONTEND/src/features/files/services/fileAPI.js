@@ -27,14 +27,41 @@ export const getFileById = async (id) => {
 };
 
 export const downloadFileUrl = (id) => {
-    // We can't easily do a straight axios get for downloading without handling blobs,
-    // Alternatively, if the token is in cookies, we could just window.open(url)
-    // But since token is in localStorage, we fetch blob and trigger download
     return api.get(`/files/${id}/download`, { responseType: 'blob' });
 };
 
 export const toggleFileStar = async (id) => {
     const response = await api.patch(`/files/${id}/star`);
+    return response.data;
+};
+
+export const toggleFileHide = async (id) => {
+    const response = await api.patch(`/files/${id}/hide`);
+    return response.data;
+};
+
+export const toggleFilePin = async (id) => {
+    const response = await api.patch(`/files/${id}/pin`);
+    return response.data;
+};
+
+export const renameFile = async ({ id, name }) => {
+    const response = await api.patch(`/files/${id}/rename`, { name });
+    return response.data;
+};
+
+export const copyFile = async ({ id, targetFolderId }) => {
+    const response = await api.post(`/files/${id}/copy`, { targetFolderId });
+    return response.data;
+};
+
+export const generateFileShareToken = async (id) => {
+    const response = await api.post(`/files/${id}/share-token`);
+    return response.data;
+};
+
+export const getSharedFile = async (token) => {
+    const response = await api.get(`/files/shared/${token}`);
     return response.data;
 };
 

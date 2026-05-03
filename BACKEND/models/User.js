@@ -24,6 +24,11 @@ const userSchema = new mongoose.Schema(
             minlength: [6, "Password must be at least 6 characters"],
             select: false, // Never return password by default
         },
+        phone: {
+            type: String,
+            default: null,
+            trim: true,
+        },
         role: {
             type: String,
             enum: ["user", "admin"],
@@ -49,6 +54,16 @@ const userSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        // 4-digit hide/unhide PIN (stored hashed)
+        hidePin: {
+            type: String,
+            default: null,
+            select: false,
+        },
+        hidePinSet: {
+            type: Boolean,
+            default: false,
+        },
     },
     {
         timestamps: true,
@@ -57,9 +72,15 @@ const userSchema = new mongoose.Schema(
 
 // Hash password before saving
 userSchema.pre("save", async function () {
-    if (!this.isModified("password")) return;
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
+    if (this.isModified("password")) {
+        const salt = await bcrypt.genSalt(12);
+        this.password = await bcrypt.hash(this.password, salt);
+    }
+    if (this.isModified("hidePin") && this.hidePin) {
+        const salt = await bcrypt.genSalt(10);
+        this.hidePin = await bcrypt.hash(this.hidePin, salt);
+        this.hidePinSet = true;
+    }
 });
 
 // Compare entered password with hashed password
@@ -67,10 +88,17 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Return safe user object (no password)
+// Compare entered PIN with hashed PIN
+userSchema.methods.compareHidePin = async function (enteredPin) {
+    if (!this.hidePin) return false;
+    return await bcrypt.compare(String(enteredPin), this.hidePin);
+};
+
+// Return safe user object (no password, no hidePin hash)
 userSchema.methods.toSafeObject = function () {
     const obj = this.toObject();
     delete obj.password;
+    delete obj.hidePin;
     return obj;
 };
 

@@ -68,7 +68,8 @@ const getMe = asyncHandler(async (req, res) => {
 
 // ─── PUT /api/auth/me ──────────────────────────────────────────────────────────
 const updateMe = asyncHandler(async (req, res) => {
-    const allowedFields = ["name", "avatar"];
+    // Email cannot be changed
+    const allowedFields = ["name", "avatar", "phone"];
     const updates = {};
     allowedFields.forEach((field) => {
         if (req.body[field] !== undefined) {
@@ -84,4 +85,52 @@ const updateMe = asyncHandler(async (req, res) => {
     return sendSuccess(res, "Profile updated", user.toSafeObject());
 });
 
-module.exports = { register, login, getMe, updateMe };
+// ─── POST /api/auth/set-pin ────────────────────────────────────────────────────
+// Set or update the 4-digit hide/unhide PIN
+const setHidePin = asyncHandler(async (req, res) => {
+    const { pin } = req.body;
+
+    if (!pin || !/^\d{4}$/.test(String(pin))) {
+        return sendError(res, "PIN must be exactly 4 digits", 400);
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+        return sendError(res, "User not found", 404);
+    }
+
+    user.hidePin = String(pin);
+    await user.save(); // pre-save hook will hash it
+
+    return sendSuccess(res, user.hidePinSet ? "PIN updated successfully" : "PIN set successfully", {
+        hidePinSet: true,
+    });
+});
+
+// ─── POST /api/auth/verify-pin ─────────────────────────────────────────────────
+// Verify the 4-digit hide/unhide PIN
+const verifyHidePin = asyncHandler(async (req, res) => {
+    const { pin } = req.body;
+
+    if (!pin || !/^\d{4}$/.test(String(pin))) {
+        return sendError(res, "PIN must be exactly 4 digits", 400);
+    }
+
+    const user = await User.findById(req.user._id).select("+hidePin");
+    if (!user) {
+        return sendError(res, "User not found", 404);
+    }
+
+    if (!user.hidePinSet || !user.hidePin) {
+        return sendError(res, "No PIN has been set. Please set a PIN first.", 400);
+    }
+
+    const isMatch = await user.compareHidePin(String(pin));
+    if (!isMatch) {
+        return sendError(res, "Incorrect PIN", 401);
+    }
+
+    return sendSuccess(res, "PIN verified", { verified: true });
+});
+
+module.exports = { register, login, getMe, updateMe, setHidePin, verifyHidePin };

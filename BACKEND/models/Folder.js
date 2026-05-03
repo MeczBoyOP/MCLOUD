@@ -35,6 +35,21 @@ const folderSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        // Hide/Pin support
+        isHidden: {
+            type: Boolean,
+            default: false,
+        },
+        isPinned: {
+            type: Boolean,
+            default: false,
+        },
+        // QR share token
+        shareToken: {
+            type: String,
+            default: null,
+            index: true,
+        },
         color: {
             type: String,
             default: null, // Optional folder color
