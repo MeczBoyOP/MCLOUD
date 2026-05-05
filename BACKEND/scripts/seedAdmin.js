@@ -19,10 +19,18 @@ async function seed() {
 
         const existing = await User.findOne({ email: ADMIN_EMAIL });
         if (existing) {
+            let updated = false;
             if (existing.role !== "admin") {
                 existing.role = "admin";
+                updated = true;
+            }
+            if (!existing.isEmailVerified) {
+                existing.isEmailVerified = true;
+                updated = true;
+            }
+            if (updated) {
                 await existing.save();
-                console.log(`♻️  Existing user promoted to admin: ${ADMIN_EMAIL}`);
+                console.log(`♻️  Existing user promoted to admin (email verified): ${ADMIN_EMAIL}`);
             } else {
                 console.log(`✅ Admin already exists: ${ADMIN_EMAIL}`);
             }
@@ -33,6 +41,7 @@ async function seed() {
                 password: ADMIN_PASSWORD,
                 role: "admin",
                 isActive: true,
+                isEmailVerified: true, // Admin accounts are pre-verified
                 storageLimit: 100 * 1024 * 1024 * 1024, // 100 GB for admin
             });
             console.log(`🎉 Admin user created: ${ADMIN_EMAIL}`);

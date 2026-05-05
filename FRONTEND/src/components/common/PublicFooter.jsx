@@ -1,4 +1,4 @@
-import React from "react";
+import { Link } from "react-router-dom";
 import { FaFacebookF, FaInstagram, FaLinkedin, FaTwitter } from "react-icons/fa";
 
 const socialIcons = [
@@ -15,14 +15,14 @@ const PublicFooter = () => {
             {/* Glow */}
             <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_center,rgba(37,99,235,0.06),transparent_70%)]" />
 
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 text-sm">
 
                     {/* Logo + Social */}
                     <div>
                         <h3 className="font-semibold text-white mb-3">
-                            FileSystem<span className="text-blue-400">UI</span>
+                            M<span className="text-blue-400">Cloud</span>
                         </h3>
 
                         <p className="text-gray-400 text-xs leading-relaxed">
@@ -59,28 +59,28 @@ const PublicFooter = () => {
 
                     {/* Links */}
                     <div>
-                        <h4 className="text-gray-300 mb-3">Product</h4>
+                        <h4 className="text-gray-300 mb-3 font-bold">Product</h4>
                         <ul className="space-y-2 text-gray-400">
-                            <li><a href="#" className="hover:text-white">Features</a></li>
-                            <li><a href="#" className="hover:text-white">Workflow</a></li>
-                            <li><a href="#" className="hover:text-white">Updates</a></li>
+                            <li><Link to="/features" className="hover:text-white transition">Features</Link></li>
+                            <li><Link to="/pricing" className="hover:text-white transition">Pricing</Link></li>
+                            <li><Link to="/contact" className="hover:text-white transition">Contact</Link></li>
                         </ul>
                     </div>
 
                     <div>
-                        <h4 className="text-gray-300 mb-3">Company</h4>
+                        <h4 className="text-gray-300 mb-3 font-bold">Company</h4>
                         <ul className="space-y-2 text-gray-400">
-                            <li><a href="#" className="hover:text-white">About</a></li>
-                            <li><a href="#" className="hover:text-white">Contact</a></li>
-                            <li><a href="#" className="hover:text-white">Careers</a></li>
+                            <li><Link to="/" className="hover:text-white transition">About</Link></li>
+                            <li><Link to="/contact" className="hover:text-white transition">Careers</Link></li>
+                            <li><Link to="/features" className="hover:text-white transition">Status</Link></li>
                         </ul>
                     </div>
 
                     <div>
-                        <h4 className="text-gray-300 mb-3">Legal</h4>
+                        <h4 className="text-gray-300 mb-3 font-bold">Legal</h4>
                         <ul className="space-y-2 text-gray-400">
-                            <li><a href="#" className="hover:text-white">Privacy</a></li>
-                            <li><a href="#" className="hover:text-white">Terms</a></li>
+                            <li><Link to="/" className="hover:text-white transition">Privacy</Link></li>
+                            <li><Link to="/" className="hover:text-white transition">Terms</Link></li>
                         </ul>
                     </div>
 
@@ -88,7 +88,7 @@ const PublicFooter = () => {
 
                 {/* Bottom */}
                 <div className="mt-10 pt-6 border-t border-white/10 text-center sm:text-left text-gray-500 text-xs">
-                    © {new Date().getFullYear()} FileSystem UI. All rights reserved.
+                    © {new Date().getFullYear()} MCloud. All rights reserved.
                 </div>
 
             </div>

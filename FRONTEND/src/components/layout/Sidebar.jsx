@@ -336,8 +336,9 @@ const Sidebar = () => {
 
             {/* Top: Logo + nav */}
             <div className="p-4 space-y-4 shrink-0">
-                <div className="h-6 flex items-center mb-6">
-                    <img src={AssetsPath.FullLogo} alt="MCloud" className="h-full object-contain" />
+                <div className="w-full h-8 flex items-center gap-2 mb-6">
+                    <img src={AssetsPath.Logo} alt="MCloud" className="w-7 h-7 object-cover" />
+                    <span className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-linear-to-r from-violet-300 via-purple-500 to-blue-900 uppercase">MCloud</span>
                 </div>
 
                 <div className="space-y-1">

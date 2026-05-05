@@ -2,6 +2,7 @@ const asyncHandler = require("../middleware/asyncHandler");
 const User = require("../models/User");
 const { generateToken } = require("../utils/generateToken");
 const { sendSuccess, sendCreated, sendError } = require("../utils/response");
+const { sendOTPEmail } = require("../utils/sendEmail");
 
 // ─── POST /api/auth/register ───────────────────────────────────────────────────
 const register = asyncHandler(async (req, res) => {
@@ -13,16 +14,23 @@ const register = asyncHandler(async (req, res) => {
         return sendError(res, "An account with this email already exists", 409);
     }
 
-    const user = await User.create({ name, email, password });
-    const token = generateToken(user._id);
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
+    const user = await User.create({ 
+        name, 
+        email, 
+        password,
+        otp,
+        otpExpiry,
+        isEmailVerified: false
+    });
 
-    return sendCreated(res, "Account created successfully", {
-        token,
-        user: user.toSafeObject(),
+    await sendOTPEmail(email, otp);
+
+    return sendCreated(res, "Account created successfully. Please verify your email.", {
+        email: user.email,
+        is_email_verified: user.isEmailVerified,
     });
 });
 
@@ -38,6 +46,12 @@ const login = asyncHandler(async (req, res) => {
 
     if (!user.isActive) {
         return sendError(res, "Your account has been deactivated. Contact support.", 401);
+    }
+
+    if (!user.isEmailVerified) {
+        return sendError(res, "Please verify your email before logging in", 403, {
+            is_email_verified: false
+        });
     }
 
     const isMatch = await user.comparePassword(password);
@@ -133,4 +147,68 @@ const verifyHidePin = asyncHandler(async (req, res) => {
     return sendSuccess(res, "PIN verified", { verified: true });
 });
 
-module.exports = { register, login, getMe, updateMe, setHidePin, verifyHidePin };
+// ─── POST /api/auth/verify-email ───────────────────────────────────────────────
+const verifyEmail = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+        return sendError(res, "Email and OTP are required", 400);
+    }
+
+    const user = await User.findOne({ email }).select("+otp +otpExpiry");
+    if (!user) {
+        return sendError(res, "User not found", 404);
+    }
+
+    if (user.isEmailVerified) {
+        return sendError(res, "Email is already verified", 400);
+    }
+
+    if (user.otp !== otp) {
+        return sendError(res, "Invalid OTP", 400);
+    }
+
+    if (user.otpExpiry < new Date()) {
+        return sendError(res, "OTP has expired", 400);
+    }
+
+    user.isEmailVerified = true;
+    user.otp = undefined;
+    user.otpExpiry = undefined;
+    await user.save();
+
+    return sendSuccess(res, "Email verified successfully", {
+        is_email_verified: user.isEmailVerified,
+    });
+});
+
+// ─── POST /api/auth/resend-otp ─────────────────────────────────────────────────
+const resendOTP = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return sendError(res, "Email is required", 400);
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        return sendError(res, "User not found", 404);
+    }
+
+    if (user.isEmailVerified) {
+        return sendError(res, "Email is already verified", 400);
+    }
+
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
+    await user.save();
+
+    await sendOTPEmail(email, otp);
+
+    return sendSuccess(res, "OTP sent successfully");
+});
+
+module.exports = { register, login, getMe, updateMe, setHidePin, verifyHidePin, verifyEmail, resendOTP };

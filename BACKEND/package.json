@@ -8,7 +8,13 @@
     "start": "node server.js",
     "lint": "eslint . --ext .js"
   },
-  "keywords": ["cloud", "storage", "files", "express", "mongodb"],
+  "keywords": [
+    "cloud",
+    "storage",
+    "files",
+    "express",
+    "mongodb"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -22,7 +28,9 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.0",
     "morgan": "^1.10.0",
-    "multer": "^1.4.5-lts.2"
+    "multer": "^1.4.5-lts.2",
+    "nodemailer": "^8.0.7",
+    "resend": "^6.12.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

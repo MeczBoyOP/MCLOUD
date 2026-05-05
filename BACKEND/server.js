@@ -150,3 +150,4 @@ process.on("unhandledRejection", (err) => {
 });
 
 module.exports = app;
+// Force nodemon restart to load new .env variables

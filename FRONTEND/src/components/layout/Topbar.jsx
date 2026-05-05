@@ -53,7 +53,7 @@ const Topbar = ({ onMenuClick }) => {
                         onClick={() => setDropdown(d => !d)}
                         className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-white/5 transition"
                     >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
                             {user?.avatar
                                 ? <img src={user.avatar} alt="avatar" className="w-full h-full rounded-full object-cover" />
                                 : initials}

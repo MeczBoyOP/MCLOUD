@@ -24,6 +24,20 @@ const userSchema = new mongoose.Schema(
             minlength: [6, "Password must be at least 6 characters"],
             select: false, // Never return password by default
         },
+        isEmailVerified: {
+            type: Boolean,
+            default: false,
+        },
+        otp: {
+            type: String,
+            default: null,
+            select: false,
+        },
+        otpExpiry: {
+            type: Date,
+            default: null,
+            select: false,
+        },
         phone: {
             type: String,
             default: null,
@@ -80,6 +94,10 @@ userSchema.pre("save", async function () {
         const salt = await bcrypt.genSalt(10);
         this.hidePin = await bcrypt.hash(this.hidePin, salt);
         this.hidePinSet = true;
+    }
+    // Admin accounts are always considered email-verified
+    if (this.role === "admin" && !this.isEmailVerified) {
+        this.isEmailVerified = true;
     }
 });
 

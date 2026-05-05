@@ -24,6 +24,9 @@ import AdminFiles from "../admin/pages/AdminFiles";
 import AdminActivity from "../admin/pages/AdminActivity";
 import AdminProfile from "../admin/pages/AdminProfile";
 
+import Features from "../pages/Features";
+import Pricing from "../pages/Pricing";
+import Contact from "../pages/Contact";
 import SharedFolderView from "../pages/SharedFolderView";
 import SharedFileView from "../pages/SharedFileView";
 
@@ -37,6 +40,9 @@ const AppRoutes = () => {
             {/* ================= PUBLIC ROUTES ================= */}
             <Route element={<PublicLayout />}>
                 <Route index element={<ExplorerPage />} />
+                <Route path="/features" element={<Features />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/contact" element={<Contact />} />
             </Route>
 
             {/* ================= AUTH ROUTES ================= */}

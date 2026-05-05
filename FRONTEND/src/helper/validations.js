@@ -12,5 +12,5 @@ export const signupSchema = z.object({
 });
 
 export const otpSchema = z.object({
-    otp: z.string().length(6, "Enter 6 digit OTP"),
+    otp: z.string().length(4, "Enter 4 digit OTP"),
 });

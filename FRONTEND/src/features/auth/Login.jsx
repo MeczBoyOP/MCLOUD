@@ -35,8 +35,14 @@ const Login = () => {
                 navigate(destination);
             }
         },
-        onError: (error) => {
-            toast.error(error.response?.data?.message || 'Login failed');
+        onError: (error, variables) => {
+            const message = error.response?.data?.message;
+            if (error.response?.status === 403 && message?.includes("verify your email")) {
+                toast.error(message);
+                navigate('/otp', { state: { email: variables.email } });
+            } else {
+                toast.error(message || 'Login failed');
+            }
         }
     });
 

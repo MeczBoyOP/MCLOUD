@@ -32,7 +32,7 @@ const PublicHeader = () => {
       bg-[#020617]/80 backdrop-blur-xl
       border-b border-white/10
     ">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
 
                 {/* Logo */}
                 <Link to="/" className="text-sm sm:text-base font-semibold tracking-tight">
@@ -41,9 +41,9 @@ const PublicHeader = () => {
 
                 {/* Desktop Nav */}
                 <nav className="hidden md:flex items-center gap-8 text-sm text-gray-400">
-                    <a href="#features" className="hover:text-white transition">Features</a>
-                    <a href="#workflow" className="hover:text-white transition">Workflow</a>
-                    <a href="#contact" className="hover:text-white transition">Contact</a>
+                    <Link to="/features" className="hover:text-white transition">Features</Link>
+                    <Link to="/pricing" className="hover:text-white transition">Pricing</Link>
+                    <Link to="/contact" className="hover:text-white transition">Contact</Link>
                 </nav>
 
                 {/* CTA */}
@@ -75,9 +75,9 @@ const PublicHeader = () => {
                     >
                         <div className="flex flex-col gap-4 text-sm text-gray-300 mt-4">
 
-                            <a href="#features" onClick={() => setOpen(false)}>Features</a>
-                            <a href="#workflow" onClick={() => setOpen(false)}>Workflow</a>
-                            <a href="#contact" onClick={() => setOpen(false)}>Contact</a>
+                            <Link to="/features" onClick={() => setOpen(false)}>Features</Link>
+                            <Link to="/pricing" onClick={() => setOpen(false)}>Pricing</Link>
+                            <Link to="/contact" onClick={() => setOpen(false)}>Contact</Link>
 
                             <CtaButton />
 

@@ -6,13 +6,11 @@ import { signupSchema } from "../../helper/validations";
 import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { useMutation } from '@tanstack/react-query';
 import { registerUser } from "./services/authAPI";
-import { useAuth } from "../../context/AuthContext";
 import { toast } from "sonner";
 
 const Signup = () => {
     const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
-    const { login } = useAuth();
 
     const {
         register,
@@ -27,8 +25,7 @@ const Signup = () => {
         onSuccess: (data) => {
             if (data.success) {
                 toast.success(data.message || 'Account created successfully');
-                login(data.data.token, data.data.user);
-                navigate('/login');
+                navigate('/otp', { state: { email: data.data?.email || data.data?.user?.email } });
             }
         },
         onError: (error) => {
