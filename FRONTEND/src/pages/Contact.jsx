@@ -12,7 +12,7 @@ const Contact = () => {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center mb-16"
@@ -24,17 +24,17 @@ const Contact = () => {
                 </motion.div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-                    
+
                     {/* Left: Contact Info */}
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, x: -30 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.2 }}
                         className="space-y-8"
                     >
-                        <div className="p-8 rounded-[2rem] bg-white/5 border border-white/10 backdrop-blur-xl space-y-10">
+                        <div className="p-8 rounded-4xl bg-white/5 border border-white/10 backdrop-blur-xl space-y-10">
                             <h2 className="text-2xl font-bold">Contact Information</h2>
-                            
+
                             <div className="space-y-6">
                                 <div className="flex items-center gap-6 group">
                                     <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
@@ -81,28 +81,28 @@ const Contact = () => {
                     </motion.div>
 
                     {/* Right: Contact Form */}
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, x: 30 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.3 }}
-                        className="bg-[#0B1224] border border-white/10 rounded-[2rem] p-8 sm:p-10 shadow-2xl"
+                        className="bg-[#0B1224] border border-white/10 rounded-4xl p-8 sm:p-10 shadow-2xl"
                     >
                         <form className="space-y-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Full Name</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         placeholder="John Doe"
-                                        className="w-full px-6 py-4 bg-[#020617] border border-white/5 rounded-2xl focus:border-blue-500 outline-none transition-all placeholder:text-gray-700" 
+                                        className="w-full px-6 py-4 bg-[#020617] border border-white/5 rounded-2xl focus:border-blue-500 outline-none transition-all placeholder:text-gray-700"
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Email Address</label>
-                                    <input 
-                                        type="email" 
+                                    <input
+                                        type="email"
                                         placeholder="john@example.com"
-                                        className="w-full px-6 py-4 bg-[#020617] border border-white/5 rounded-2xl focus:border-blue-500 outline-none transition-all placeholder:text-gray-700" 
+                                        className="w-full px-6 py-4 bg-[#020617] border border-white/5 rounded-2xl focus:border-blue-500 outline-none transition-all placeholder:text-gray-700"
                                     />
                                 </div>
                             </div>
@@ -119,8 +119,8 @@ const Contact = () => {
 
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Message</label>
-                                <textarea 
-                                    rows="4" 
+                                <textarea
+                                    rows="4"
                                     placeholder="How can we help?"
                                     className="w-full px-6 py-4 bg-[#020617] border border-white/5 rounded-2xl focus:border-blue-500 outline-none transition-all placeholder:text-gray-700 resize-none"
                                 ></textarea>

@@ -1,8 +1,8 @@
 import React from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { 
-    MoveRight, FolderTree, Layers, Zap, Shield, Keyboard, Cpu, 
-    FolderPlus, Move, CheckCircle, Share2, MousePointer2, 
+import {
+    MoveRight, FolderTree, Layers, Zap, Shield, Keyboard, Cpu,
+    FolderPlus, Move, CheckCircle, Share2, MousePointer2,
     Cloud, Lock, Sparkles, BarChart3
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -94,10 +94,10 @@ const ExplorerPage = () => {
 
     return (
         <div className="bg-[#020617] min-h-screen text-white font-sans selection:bg-blue-500/30">
-            
+
             {/* ─── HERO SECTION ───────────────────────────────────────────── */}
             <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 sm:px-6 pt-20">
-                
+
                 {/* 🌌 Dynamic Background Elements */}
                 <FloatingObject className="w-64 h-64 bg-blue-600/20 top-[10%] left-[5%]" delay={0} />
                 <FloatingObject className="w-96 h-96 bg-indigo-600/15 bottom-[10%] right-[5%]" delay={2} duration={15} scale={[1, 1.3, 1]} />
@@ -105,7 +105,7 @@ const ExplorerPage = () => {
 
                 {/* Main Hero Container */}
                 <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-                    
+
                     {/* LEFT: Text Content */}
                     <motion.div
                         style={{ opacity, scale }}
@@ -121,13 +121,13 @@ const ExplorerPage = () => {
 
                         <h1 className="text-4xl sm:text-6xl xl:text-7xl font-bold leading-[1.1] tracking-tight">
                             Your Storage, <br />
-                            <span className="text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-blue-600 bg-clip-text">
+                            <span className="text-transparent bg-linear-to-r from-blue-400 via-indigo-400 to-blue-600 bg-clip-text">
                                 Perfectly Organized
                             </span>
                         </h1>
 
                         <p className="text-gray-400 text-base sm:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                            MCloud brings precision to your digital life. Experience a fluid, 
+                            MCloud brings precision to your digital life. Experience a fluid,
                             recursive folder system designed for speed, security, and absolute control.
                         </p>
 
@@ -141,7 +141,7 @@ const ExplorerPage = () => {
                                 Get Started Free
                                 <MoveRight className="group-hover:translate-x-1 transition-transform" />
                             </motion.button>
-                            
+
                             <motion.button
                                 whileHover={{ backgroundColor: "rgba(255, 255, 255, 0.1)" }}
                                 onClick={() => navigate("/login")}
@@ -174,9 +174,9 @@ const ExplorerPage = () => {
                     >
                         {/* Shadow Glow */}
                         <div className="absolute inset-0 bg-blue-500/10 blur-[100px] rounded-full -z-10" />
-                        
+
                         {/* Main Explorer Mockup */}
-                        <div className="relative bg-[#0B1224] border border-white/10 rounded-[2rem] p-6 shadow-2xl backdrop-blur-3xl transform perspective-1000">
+                        <div className="relative bg-[#0B1224] border border-white/10 rounded-4xl p-6 shadow-2xl backdrop-blur-3xl transform perspective-1000">
                             <div className="flex items-center gap-2 mb-6 border-b border-white/5 pb-4">
                                 <div className="flex gap-1.5">
                                     <div className="w-3 h-3 rounded-full bg-red-500/50" />
@@ -196,7 +196,7 @@ const ExplorerPage = () => {
                                         </div>
                                     ))}
                                 </div>
-                                
+
                                 {/* Content Grid Mockup */}
                                 <div className="col-span-8 grid grid-cols-2 gap-4">
                                     {[1, 2, 3, 4].map(i => (
@@ -277,7 +277,7 @@ const ExplorerPage = () => {
             </section>
 
             {/* ─── INTERACTIVE FEATURES GRID ──────────────────────────────── */}
-            <section className="relative py-24 px-4 sm:px-6 bg-gradient-to-b from-transparent via-blue-900/5 to-transparent">
+            <section className="relative py-24 px-4 sm:px-6 bg-linear-to-b from-transparent via-blue-900/5 to-transparent">
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-end mb-20">
                         <div className="lg:col-span-2 space-y-6">
@@ -286,7 +286,7 @@ const ExplorerPage = () => {
                                 <span className="text-blue-500">Unmatched Performance</span>
                             </h2>
                             <p className="text-gray-400 text-lg max-w-2xl">
-                                We've packed MCloud with features that give you the power of a desktop operating 
+                                We've packed MCloud with features that give you the power of a desktop operating
                                 system right inside your modern web browser.
                             </p>
                         </div>
@@ -317,14 +317,14 @@ const ExplorerPage = () => {
                                     <div className="h-full p-8 rounded-[2.5rem] bg-[#0B1224]/80 backdrop-blur-xl border border-white/5 hover:border-white/20 transition-all duration-500 shadow-xl overflow-hidden">
                                         {/* Background Accent */}
                                         <div className={`absolute top-0 right-0 w-32 h-32 bg-${item.color}-500/10 blur-[50px] -z-10 group-hover:bg-${item.color}-500/20 transition-colors`} />
-                                        
+
                                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-${item.color}-400 bg-${item.color}-500/10 mb-6 group-hover:scale-110 transition-transform`}>
                                             <Icon size={24} />
                                         </div>
-                                        
+
                                         <h3 className="text-xl font-bold mb-4 tracking-tight group-hover:text-blue-400 transition-colors">{item.title}</h3>
                                         <p className="text-gray-500 leading-relaxed text-sm">{item.desc}</p>
-                                        
+
                                         <div className="mt-8 flex items-center gap-2 text-xs font-bold text-gray-600 group-hover:text-blue-400/60 transition-colors">
                                             <span>Learn More</span>
                                             <div className="h-px flex-1 bg-white/5" />
@@ -344,7 +344,7 @@ const ExplorerPage = () => {
                         initial={{ opacity: 0, y: 50 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="relative p-12 sm:p-20 rounded-[3rem] bg-gradient-to-br from-blue-600 to-indigo-700 overflow-hidden shadow-[0_30px_100px_rgba(37,99,235,0.3)]"
+                        className="relative p-12 sm:p-20 rounded-[3rem] bg-linear-to-br from-blue-600 to-indigo-700 overflow-hidden shadow-[0_30px_100px_rgba(37,99,235,0.3)]"
                     >
                         {/* Decorative Background Elements */}
                         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full translate-x-1/2 -translate-y-1/2" />
@@ -352,11 +352,11 @@ const ExplorerPage = () => {
 
                         <div className="relative z-10 text-center space-y-8">
                             <h2 className="text-4xl sm:text-6xl font-black text-white leading-tight">
-                                Ready to take <br /> 
+                                Ready to take <br />
                                 <span className="opacity-80">control of your data?</span>
                             </h2>
                             <p className="text-blue-100/80 text-lg max-w-xl mx-auto">
-                                Join thousands of creators and professionals who trust MCloud 
+                                Join thousands of creators and professionals who trust MCloud
                                 for their digital workspace organization.
                             </p>
                             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">

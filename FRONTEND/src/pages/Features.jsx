@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { 
-    Zap, Shield, Cloud, Lock, Search, Share2, 
+import {
+    Zap, Shield, Cloud, Lock, Search, Share2,
     HardDrive, RefreshCw, Smartphone, Monitor,
     Cpu, Layers, FolderTree, Database
 } from "lucide-react";
@@ -43,19 +43,19 @@ const Features = () => {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                
+
                 {/* Header */}
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center space-y-4 mb-24"
                 >
                     <h1 className="text-4xl sm:text-6xl font-black">
                         Engineered for <br />
-                        <span className="text-transparent bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text">Ultimate Performance</span>
+                        <span className="text-transparent bg-linear-to-r from-blue-400 to-indigo-500 bg-clip-text">Ultimate Performance</span>
                     </h1>
                     <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-                        MCloud isn't just another storage provider. We've rebuilt the file system 
+                        MCloud isn't just another storage provider. We've rebuilt the file system
                         experience from the ground up for the modern web.
                     </p>
                 </motion.div>
@@ -64,7 +64,7 @@ const Features = () => {
                 <div className="space-y-32">
                     {featureGroups.map((group, groupIdx) => (
                         <div key={groupIdx} className="space-y-12">
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0, x: -20 }}
                                 whileInView={{ opacity: 1, x: 0 }}
                                 viewport={{ once: true }}
@@ -106,14 +106,14 @@ const Features = () => {
                 </div>
 
                 {/* Tech Stack Spotlight */}
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0 }}
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
-                    className="mt-40 p-12 rounded-[3rem] bg-gradient-to-br from-[#0B1224] to-[#020617] border border-white/10 text-center relative overflow-hidden"
+                    className="mt-40 p-12 rounded-[3rem] bg-linear-to-br from-[#0B1224] to-[#020617] border border-white/10 text-center relative overflow-hidden"
                 >
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
-                    
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-linear-to-r from-transparent via-blue-500/50 to-transparent" />
+
                     <h2 className="text-3xl font-bold mb-8">Built with Modern Tech</h2>
                     <div className="flex flex-wrap justify-center gap-8 opacity-40 hover:opacity-100 transition-opacity">
                         {['Node.js', 'React 18', 'MongoDB', 'Redis', 'AES-256', 'JWT'].map(tech => (
