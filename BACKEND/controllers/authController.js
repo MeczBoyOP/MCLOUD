@@ -17,6 +17,8 @@ const register = asyncHandler(async (req, res) => {
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
+    console.log(`\n[AUTH] Generated OTP for ${email}: ${otp}\n`);
+
     const user = await User.create({ 
         name, 
         email, 
@@ -26,7 +28,7 @@ const register = asyncHandler(async (req, res) => {
         isEmailVerified: false
     });
 
-    await sendOTPEmail(email, otp);
+    sendOTPEmail(email, otp);
 
     return sendCreated(res, "Account created successfully. Please verify your email.", {
         email: user.email,
@@ -202,13 +204,15 @@ const resendOTP = asyncHandler(async (req, res) => {
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
+    console.log(`\n[AUTH] Resent OTP for ${email}: ${otp}\n`);
+
     user.otp = otp;
     user.otpExpiry = otpExpiry;
     await user.save();
 
-    await sendOTPEmail(email, otp);
+    sendOTPEmail(email, otp);
 
-    return sendSuccess(res, "OTP sent successfully");
+    return sendSuccess(res, "OTP sent successfully", { otp });
 });
 
 module.exports = { register, login, getMe, updateMe, setHidePin, verifyHidePin, verifyEmail, resendOTP };
