@@ -1,9 +1,4 @@
-const { Resend } = require("resend");
-
-// Initialize Resend with the API key from environment variables
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-// ─── OTP Email Template ───────────────────────────────────────────────────────
+// ─── Send OTP Email using Brevo API ───────────────────────────────────────────
 const otpEmailTemplate = (otp) => `
 <!DOCTYPE html>
 <html lang="en">
@@ -54,28 +49,42 @@ const otpEmailTemplate = (otp) => `
 </html>
 `;
 
-// ─── Send OTP Email ───────────────────────────────────────────────────────────
 const sendOTPEmail = async (email, otp) => {
     // Always log OTP to console for development convenience
     console.log(`\n\n=== VERIFICATION OTP ===\nEmail: ${email}\nOTP: ${otp}\n========================\n\n`);
 
-    if (!process.env.RESEND_API_KEY) {
-        console.warn("⚠️  RESEND_API_KEY not set in .env — skipping email send.");
+    if (!process.env.BREVO_API_KEY) {
+        console.warn("⚠️  BREVO_API_KEY not set in .env — skipping email send.");
         return true;
     }
 
     try {
-        await resend.emails.send({
-            from: 'MCloud <onboarding@resend.dev>',
-            to: email,
-            subject: 'Your MCloud Verification OTP',
-            html: otpEmailTemplate(otp),
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': process.env.BREVO_API_KEY,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                sender: { name: 'MCloud', email: 'badjokers99@gmail.com' }, // Must be your verified sender email
+                to: [{ email: email }],
+                subject: 'Your MCloud Verification OTP',
+                htmlContent: otpEmailTemplate(otp)
+            })
         });
-        console.log(`✅ OTP email sent via Resend to ${email}`);
-        return true;
+
+        const data = await response.json();
+
+        if (response.ok) {
+            console.log(`✅ OTP email sent via Brevo to ${email}`);
+            return true;
+        } else {
+            console.error("❌ Failed to send OTP email via Brevo:", data.message || data);
+            return true;
+        }
     } catch (err) {
-        console.error("❌ Failed to send OTP email via Resend:", err.message || err);
-        // Don't fail registration — user can use the console OTP
+        console.error("❌ Error calling Brevo API:", err.message || err);
         return true;
     }
 };
