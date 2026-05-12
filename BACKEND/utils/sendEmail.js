@@ -1,17 +1,7 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-// ─── Transporter ──────────────────────────────────────────────────────────────
-// Uses Gmail SMTP. Requires GMAIL_USER + GMAIL_APP_PASSWORD in .env
-// Generate an App Password at: https://myaccount.google.com/apppasswords
-const createTransporter = () => {
-    return nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-            user: process.env.GMAIL_USER,
-            pass: process.env.GMAIL_APP_PASSWORD,
-        },
-    });
-};
+// Initialize Resend with the API key from environment variables
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ─── OTP Email Template ───────────────────────────────────────────────────────
 const otpEmailTemplate = (otp) => `
@@ -45,7 +35,7 @@ const otpEmailTemplate = (otp) => `
               <div style="background:#0f0f13;border:1px solid #2a2a3a;border-radius:12px;padding:24px;text-align:center;margin-bottom:28px;">
                 <span style="font-size:42px;font-weight:800;letter-spacing:12px;color:#6c63ff;font-family:'Courier New',monospace;">${otp}</span>
               </div>
-              <p style="margin:0;color:#6060780;font-size:13px;line-height:1.6;color:#60607a;">
+              <p style="margin:0;color:#60607a;font-size:13px;line-height:1.6;">
                 If you didn't request this, you can safely ignore this email. Someone may have typed your email address by mistake.
               </p>
             </td>
@@ -69,23 +59,22 @@ const sendOTPEmail = async (email, otp) => {
     // Always log OTP to console for development convenience
     console.log(`\n\n=== VERIFICATION OTP ===\nEmail: ${email}\nOTP: ${otp}\n========================\n\n`);
 
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-        console.warn("⚠️  GMAIL_USER or GMAIL_APP_PASSWORD not set in .env — skipping email send.");
+    if (!process.env.RESEND_API_KEY) {
+        console.warn("⚠️  RESEND_API_KEY not set in .env — skipping email send.");
         return true;
     }
 
     try {
-        const transporter = createTransporter();
-        await transporter.sendMail({
-            from: `"MCloud" <${process.env.GMAIL_USER}>`,
+        await resend.emails.send({
+            from: 'MCloud <onboarding@resend.dev>',
             to: email,
-            subject: "Your MCloud Verification OTP",
+            subject: 'Your MCloud Verification OTP',
             html: otpEmailTemplate(otp),
         });
-        console.log(`✅ OTP email sent to ${email}`);
+        console.log(`✅ OTP email sent via Resend to ${email}`);
         return true;
     } catch (err) {
-        console.error("❌ Failed to send OTP email:", err.message || err);
+        console.error("❌ Failed to send OTP email via Resend:", err.message || err);
         // Don't fail registration — user can use the console OTP
         return true;
     }
